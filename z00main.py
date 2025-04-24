@@ -27,10 +27,11 @@ def get_camp_links(city_url):
     return [urlstart + link["href"] for link in links]
     
 
-# 3. 擷取個別露營場的詳細資訊（你已經有寫很多函式）
+# 3. 擷取個別露營場的詳細資訊
 
-#營地名稱地點 (info.py)
+#營地名稱地點 
 def get_camp_info(soup):
+    """營地基本資訊"""
     h1_tag =  soup.select_one("h1")
     name = h1_tag.contents[0].strip()
     star_count = len(h1_tag.select("i.fa-star"))
@@ -47,20 +48,24 @@ def get_camp_info(soup):
 
 #營地相關資訊
 def get_address(soup):
+    """營地地址"""
     address_tag = soup.select_one(".inline.block.camp-add")
     return address_tag.text.strip() if address_tag else "無地址資訊"
 
 def get_gps(soup):
+    """營地定位"""
     gps_tag = soup.select_one(".inline.camp-gps span")
     return gps_tag.text.strip() if gps_tag else "無GPS資訊"
 
 def get_phone(soup):
+    """營地電話"""
     phone_tag = soup.select_one(".inline.camp-phone")
     return phone_tag.text.strip() if phone_tag else "無電話資訊"
     
 
 
-def get_price(soup):#價格表
+def get_price(soup):
+    """營地價格"""
     table = soup.select_one("table.table.table-hover")
     if table:
         thead = [[th.text.strip() for th in table.select('thead th')] ]
@@ -86,7 +91,8 @@ def get_price(soup):#價格表
     
 
 
-def get_table_content(soup):#營區資訊介紹表格 
+def get_table_content(soup):#營區資訊介紹表格
+    """營區介紹""" 
     results = {}
     for el in soup.select("div.classify"):
         title = el.select_one('div.title').text.strip() 
@@ -96,15 +102,13 @@ def get_table_content(soup):#營區資訊介紹表格
     return results
 
 
-#說明
 def get_campsite_detail(soup):
+    """營地須知"""
     h2_tags = soup.find_all('h2',class_='directions')
     detail = h2_tags[1].text.strip()
     return detail
 
 
-
-#其中一個網頁(899)主函式
 def get_one_place_info(url):
     """獲得單一露營場各項資訊"""
     response = requests.get(url,headers=headers)
@@ -132,6 +136,7 @@ def get_one_place_info(url):
     camp["營地須知"] = get_campsite_detail(soup)
 
 def get_one_place_reviews(url):
+    """獲得單一露營場的評論"""
     response = requests.get(url,headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
     
