@@ -7,7 +7,7 @@ import json
 #response = requests.get(url,headers=headers)
 #soup = BeautifulSoup(response.text, "html.parser")
 
-url = ""
+#url = ""
 headers = {
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"}
 
@@ -44,18 +44,10 @@ def get_review_count(soup):
 #如果get_review_count=0 就不會有以下 
 def get_score(soup):    
     """營地各項得分"""
-    # div = soup.select("div.col-md-9.col-sm-9.col-xs-9.text-center") 這樣抓到的是(75則評價)
-    # traffic_score = div[2].text.strip()
-    # bathroom_score = div[3].text.strip()
-    # view_score = div[4].text.strip()
-    # service_score = div[5].text.strip()
-    # facility_score = div[6].text.strip()
-    # print(f"總共抓到 {len(div)} 個 div（應該至少要有 7 個）")
-    # for i, d in enumerate(div):
-    #     print(f"[{i}] => {d.text.strip()}")
-    # return traffic_score, bathroom_score, view_score, service_score, facility_score
     scores = []
     score_blocks = soup.select("div.col-md-12.col-sm-12.col-xs-12.evaluation-padding div.text-center")
+    if not score_blocks:  # 如果沒有評分區塊，返回五個 None 避免後續出錯
+        return [None] * 5 
     for block in score_blocks:
         star_count = len(block.select("i.fa-star"))  # 計算星星數
         scores.append(str(star_count))  # 存成字串方便後續處理
@@ -110,18 +102,73 @@ def get_customer_reviews(block):
 
 
 
-def get_one_place_info(url):
-    """獲得單一露營場各項資訊"""
+def get_one_place_reviews(url):
+    """獲得單一露營場評分"""
     response = requests.get(url,headers=headers)
     if response.status_code != 200:
         print(f"請求失敗，status code: {response.status_code}")
     soup = BeautifulSoup(response.text, "html.parser")
+    
+    review_container = soup.select_one("#tab11")
+    all_reviews = []
+    if review_container: #如果有評論區
+        review_blocks = review_container.select("div.row")
+        for block in review_blocks:
+            name = get_customer_name(block)
+            checkin_date, review_date = get_dates(block)
+            customer_rating = get_customer_rating(block)
+            review_title, review_content = get_customer_reviews(block)
+            review_data = {
+                "姓名": name,
+                "入住日期": checkin_date,
+                "評論日期": review_date,
+                "評分": customer_rating,
+                "評論標題": review_title,
+                "評論內容": review_content,    
+            }
+            all_reviews.append(review_data)
+    
     return {
         "營地名稱": get_camp_name(soup),
         "營地總星等": get_overall_stars(soup),
         "評論總數": get_review_count(soup),
-       
+        "交通便利度": get_score(soup)[0],
+        "衛浴整潔度": get_score(soup)[1],
+        "景觀滿意度": get_score(soup)[2],
+        "服務品質": get_score(soup)[3],
+        "設施完善度":get_score(soup)[4],
+        "顧客評論":all_reviews
+        }
 
+def save_to_json(data, filename):
+    """存入 JSON 檔"""
+    with open(filename, "w", encoding="utf-8") as f:
+       json.dump(data, f, indent=4, ensure_ascii=False)
+
+
+
+
+url = "https://www.easycamp.com.tw/store/purchase_rank/2649"
+review_data = get_one_place_reviews(url)
+save_to_json(review_data, "no_reviews.json")
+
+
+##其他的改掉的
+# 將 get_score(soup) 的結果存為 scores 並解包，可以提高程式碼的可讀性
+# scores = get_score(soup)
+# traffic, bathroom, view, service, facility = scores
+       
+# return {
+#         "營地名稱": get_camp_name(soup),
+#         "營地總星等": get_overall_stars(soup),
+#         "評論總數": get_review_count(soup),
+#         "交通便利度": traffic,
+#         "衛浴整潔度": bathroom,
+#         "景觀滿意度": view,
+#         "服務品質": service,
+#         "設施完善度":facility,
+#         "顧客評論":all_reviews
+#         }
         
 
 ###--------------------試印
@@ -132,45 +179,34 @@ def get_one_place_info(url):
 # print(f"🧾 評論總數：{review_count} 則")
 
 
-traffic_score, bathroom_score, view_score, service_score, facility_score = get_score(soup)
-camp_scores = {
-    "交通便利度": traffic_score,
-    "衛浴整潔度": bathroom_score,
-    "景觀滿意度": view_score,
-    "服務品質": service_score,
-    "設施完善度": facility_score
-}
-print("🏕️ 營地整體評分：")
-for key, score in camp_scores.items():
-    print(f"{key}: {score}")
+
 
 
 #2. 找出所有評論區塊
-review_container = soup.select_one("#tab11")
-all_reviews = []
+# review_container = soup.select_one("#tab11")
+# all_reviews = []
 
-if review_container:
-    review_blocks = review_container.select("div.row")
+# if review_container:
+#     review_blocks = review_container.select("div.row")
   
-    for block in review_blocks:
-        #review_soup = BeautifulSoup(str(block), "html.parser")
-        name = get_customer_name(block)
-        checkin_date, review_date = get_dates(block)
-        customer_rating = get_customer_rating(block)
-        review_title, review_content = get_customer_reviews(block)
-        if name and (checkin_date or review_date):
-            review_data = {
-                "姓名": name,
-                "入住日期": checkin_date,
-                "評論日期": review_date,
-                "評分": customer_rating,
-                "評論標題": review_title,
-                "評論內容": review_content,    
-            }
-            all_reviews.append(review_data)
+#     for block in review_blocks:
+#         #review_soup = BeautifulSoup(str(block), "html.parser")
+#         name = get_customer_name(block)
+#         checkin_date, review_date = get_dates(block)
+#         customer_rating = get_customer_rating(block)
+#         review_title, review_content = get_customer_reviews(block)
+#         review_data = {
+#             "姓名": name,
+#             "入住日期": checkin_date,
+#             "評論日期": review_date,
+#             "評分": customer_rating,
+#             "評論標題": review_title,
+#             "評論內容": review_content,    
+#         }
+#         all_reviews.append(review_data)
 
 # # 4. 印出結果
-print(all_reviews)
+# print(all_reviews)
 #print(len(all_reviews))
 
 # for i, r in enumerate(all_reviews, 1):
@@ -181,5 +217,3 @@ print(all_reviews)
 
 
 
-#with open("reviews.json", "w", encoding="utf-8") as f:
-#        json.dump(all_reviews, f, indent=4, ensure_ascii=False)
